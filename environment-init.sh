@@ -24,15 +24,15 @@ ask_sensitive_var() {
 
     echo "🔑 Ingresa $var_name (oculto, presiona Enter para usar el valor por defecto)"
     read -s -p "🔹 Contraseña [$default_value]: " user_input
-    echo ""  # Salto de línea para evitar que la siguiente salida se mezcle
+    echo ""  
 
-    # 🛑 Reemplazar comillas dobles por comillas simples y avisar al usuario
-    sanitized_pass=$(echo "${user_input:-$default_value}" | tr '"' "'")
+    sanitized_pass=$(echo "${user_input:-$default_value}" | tr '"' "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
     if [[ "$sanitized_pass" != "${user_input:-$default_value}" ]]; then
-        echo "⚠️ Nota: Se reemplazaron comillas dobles (\") por comillas simples (') por seguridad."
+        echo "⚠️ Nota: Se han ajustado espacios en blanco y cambiado comillas dobles (\") por comillas simples (')."
     fi
 
-    echo "$sanitized_pass"
+    echo "Password: asegurate de guardar la contraseña - $sanitized_pass"
 }
 
 # 📂 Verificación del archivo .env
@@ -61,13 +61,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
     FULL_DOMAIN="$SUBDOMAIN.$SITE_DOMAIN"
 
     cat <<EOF > "$ENV_FILE"
-DB_USER=$DB_USER
-DB_PASS=$DB_PASS
-DB_NAME=$DB_NAME
-SITE_DOMAIN=$SITE_DOMAIN
-SUBDOMAIN=$SUBDOMAIN
-FULL_DOMAIN=$FULL_DOMAIN
-FASTAPI_PORT=$FASTAPI_PORT
+DB_USER="$DB_USER"
+DB_PASS="$DB_PASS"
+DB_NAME="$DB_NAME"
+SITE_DOMAIN="$SITE_DOMAIN"
+SUBDOMAIN="$SUBDOMAIN"
+FULL_DOMAIN="$FULL_DOMAIN"
+FASTAPI_PORT="$FASTAPI_PORT"
 EOF
 
     echo "✅ Archivo .env creado en $(pwd). 📂 Revísalo antes de continuar."
