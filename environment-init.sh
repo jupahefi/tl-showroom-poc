@@ -6,25 +6,54 @@ set -e  # ⛔ Detener ejecución si hay error
 ENV_FILE=".env"
 REQUIRED_VARS=("DB_USER" "DB_PASS" "DB_NAME" "SITE_DOMAIN" "FASTAPI_PORT")
 
-# 📂 Si el .env no existe, crearlo con valores por defecto
+# 🛠️ Función para pedir input con valor por defecto
+ask_var() {
+    local var_name="$1"
+    local default_value="$2"
+    local user_input
+
+    read -p "🔹 Ingresa $var_name [$default_value]: " user_input
+    echo "${user_input:-$default_value}"
+}
+
+# 📂 Verificación del archivo .env
+if [[ -f "$ENV_FILE" ]]; then
+    echo "⚠️ Archivo .env encontrado en $(pwd)."
+    read -p "🔄 ¿Quieres regenerarlo? (s/n): " REGENERATE_ENV
+    if [[ "$REGENERATE_ENV" == "s" ]]; then
+        rm "$ENV_FILE"
+        echo "🗑️ Archivo .env eliminado. Creando uno nuevo..."
+    else
+        echo "✅ Usando configuración existente en .env."
+    fi
+fi
+
+# 📂 Si el .env no existe, lo creamos y pedimos valores
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "⚠️ Archivo .env no encontrado. Creando uno nuevo..."
+    echo "⚠️ No se encontró .env. Creando uno nuevo..."
+    
+    DB_USER=$(ask_var "usuario de la base de datos" "showroom_user")
+    DB_PASS=$(ask_var "contraseña de la base de datos" "SuperSecurePass123")
+    DB_NAME=$(ask_var "nombre de la base de datos" "showroom_db")
+    SITE_DOMAIN=$(ask_var "dominio del sitio (ej: equalitech.xyz)" "equalitech.xyz")
+    FASTAPI_PORT=$(ask_var "puerto para FastAPI" "8000")
+
     cat <<EOF > "$ENV_FILE"
-DB_USER=showroom_user
-DB_PASS=SuperSecurePass123
-DB_NAME=showroom_db
-SITE_DOMAIN=equalitech.xyz
-FASTAPI_PORT=8000
+DB_USER=$DB_USER
+DB_PASS=$DB_PASS
+DB_NAME=$DB_NAME
+SITE_DOMAIN=$SITE_DOMAIN
+FASTAPI_PORT=$FASTAPI_PORT
 EOF
-    echo "✅ Archivo .env creado con valores por defecto. ¡Revísalo antes de ejecutar el script!"
-    exit 0  # 🛑 Detener ejecución para que el usuario revise el .env
+
+    echo "✅ Archivo .env creado en $(pwd). 📂 Revísalo antes de continuar."
 fi
 
 # 🚀 Cargar configuración desde .env
-echo "📂 Cargando configuración desde .env..."
+echo "📂 Cargando configuración desde $(pwd)/.env..."
 export $(grep -v '^#' "$ENV_FILE" | xargs)
 
-# 🔍 Validar variables requeridas
+# 🔍 Validar que todas las variables están definidas
 for var in "${REQUIRED_VARS[@]}"; do
     if [[ -z "${!var}" ]]; then
         echo "❌ ERROR: La variable $var no está definida en el .env"
@@ -39,7 +68,9 @@ SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
 
 # 🔐 Verificar certificados SSL
 if [[ ! -f "$SSL_CERT" || ! -f "$SSL_KEY" ]]; then
-    echo "❌ ERROR: No se encontraron los certificados SSL en $SSL_CERT y $SSL_KEY"
+    echo "❌ ERROR: No se encontraron los certificados SSL en:"
+    echo "🔹 Certificado: $SSL_CERT"
+    echo "🔹 Llave privada: $SSL_KEY"
     exit 1
 fi
 
@@ -54,6 +85,7 @@ fi
 # 🏗️ Creación de estructura de proyecto
 mkdir -p "$PROJECT_PATH"
 cd "$PROJECT_PATH" || exit
+echo "📂 Ubicación del proyecto: $(pwd)"
 
 # 📦 Función para crear archivos si no existen
 create_file_if_not_exists() {
@@ -61,10 +93,11 @@ create_file_if_not_exists() {
     local content="$2"
 
     if [[ -f "$file_path" ]]; then
-        echo "⚠️ Archivo $file_path ya existe, omitiendo..."
+        echo "⚠️ Archivo $file_path ya existe en $(pwd), omitiendo..."
     else
-        echo "📄 Creando $file_path..."
+        echo "📄 Creando $file_path en $(pwd)..."
         echo "$content" > "$file_path"
+        echo "🔍 Puedes revisar el archivo en: $(pwd)/$file_path"
     fi
 }
 
@@ -130,19 +163,22 @@ server {
     }
 }
 EOF
+    echo "🔍 Puedes revisar la configuración en: $NGINX_CONFIG"
 else
     echo "⚠️ Configuración de Nginx ya existe, omitiendo..."
 fi
 
-# 🔄 Recargar Nginx
-echo "🔄 Recargando Nginx..."
+# 🔄 Recargar Nginx con EasyEngine
+echo "🔄 Recargando Nginx con EasyEngine..."
 ee site reload "$SITE_DOMAIN"
 
 # ✅ Verificación final
 echo "✅ Verificando configuración..."
 ls -l "$PROJECT_PATH"
-nginx -t
-curl -I "http://$SITE_DOMAIN"
+echo "🔍 Puedes revisar los archivos en: $PROJECT_PATH"
+
+echo "🔍 Probando Nginx con EasyEngine:"
+ee site info "$SITE_DOMAIN"
 
 echo "🎉 Setup completado. Ahora puedes ejecutar:"
-echo "👉 docker-compose up -d"
+echo "👉 docker-compose up -d en $(pwd)"
