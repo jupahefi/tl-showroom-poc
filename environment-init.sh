@@ -16,7 +16,7 @@ ask_var() {
     echo "${user_input:-$default_value}"
 }
 
-# 🛠️ Función para pedir contraseña sin mostrar en pantalla
+# 🛠️ Función para pedir contraseña sin mostrar en pantalla y sanitizar caracteres peligrosos
 ask_sensitive_var() {
     local var_name="$1"
     local default_value="$2"
@@ -25,7 +25,14 @@ ask_sensitive_var() {
     echo "🔑 Ingresa $var_name (oculto, presiona Enter para usar el valor por defecto)"
     read -s -p "🔹 Contraseña [$default_value]: " user_input
     echo ""  # Salto de línea para evitar que la siguiente salida se mezcle
-    echo "${user_input:-$default_value}"
+
+    # 🛑 Reemplazar comillas dobles por comillas simples y avisar al usuario
+    sanitized_pass=$(echo "${user_input:-$default_value}" | tr '"' "'")
+    if [[ "$sanitized_pass" != "${user_input:-$default_value}" ]]; then
+        echo "⚠️ Nota: Se reemplazaron comillas dobles (\") por comillas simples (') por seguridad."
+    fi
+
+    echo "$sanitized_pass"
 }
 
 # 📂 Verificación del archivo .env
@@ -54,13 +61,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
     FULL_DOMAIN="$SUBDOMAIN.$SITE_DOMAIN"
 
     cat <<EOF > "$ENV_FILE"
-DB_USER="$DB_USER"
-DB_PASS="$DB_PASS"
-DB_NAME="$DB_NAME"
-SITE_DOMAIN="$SITE_DOMAIN"
-SUBDOMAIN="$SUBDOMAIN"
-FULL_DOMAIN="$FULL_DOMAIN"
-FASTAPI_PORT="$FASTAPI_PORT"
+DB_USER=$DB_USER
+DB_PASS=$DB_PASS
+DB_NAME=$DB_NAME
+SITE_DOMAIN=$SITE_DOMAIN
+SUBDOMAIN=$SUBDOMAIN
+FULL_DOMAIN=$FULL_DOMAIN
+FASTAPI_PORT=$FASTAPI_PORT
 EOF
 
     echo "✅ Archivo .env creado en $(pwd). 📂 Revísalo antes de continuar."
@@ -184,20 +191,4 @@ server {
 EOF
     echo "🔍 Puedes revisar la configuración en: $NGINX_CONFIG"
 else
-    echo "⚠️ Configuración de Nginx ya existe, omitiendo..."
-fi
-
-# 🔄 Recargar Nginx con EasyEngine
-echo "🔄 Recargando Nginx con EasyEngine..."
-ee site reload "$FULL_DOMAIN"
-
-# ✅ Verificación final
-echo "✅ Verificando configuración..."
-ls -l "$PROJECT_PATH"
-echo "🔍 Puedes revisar los archivos en: $PROJECT_PATH"
-
-echo "🔍 Probando Nginx con EasyEngine:"
-ee site info "$FULL_DOMAIN"
-
-echo "🎉 Setup completado. Ahora puedes ejecutar:"
-echo "👉 docker-compose up -d en $(pwd)"
+    echo "⚠️ Configuración de
