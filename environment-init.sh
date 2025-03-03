@@ -83,3 +83,112 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 echo "✅ Todas las variables del .env fueron cargadas correctamente."
+
+PROJECT_PATH="/opt/easyengine/sites/$FULL_DOMAIN/app/backend"
+NGINX_CONFIG="/opt/easyengine/sites/$FULL_DOMAIN/config/nginx/custom/user.conf"
+SSL_CERT="/etc/letsencrypt/live/$SITE_DOMAIN/fullchain.pem"
+SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
+
+# 🔐 Verificar certificados SSL
+if [[ ! -f "$SSL_CERT" || ! -f "$SSL_KEY" ]]; then
+    echo "❌ ERROR: No se encontraron los certificados SSL en:"
+    echo "🔹 Certificado: $SSL_CERT"
+    echo "🔹 Llave privada: $SSL_KEY"
+    exit 1
+fi
+
+# 🌐 Verificar si el sitio existe en EasyEngine
+if ee site list | grep -q "$FULL_DOMAIN"; then
+    echo "⚠️ El sitio $FULL_DOMAIN ya existe en EasyEngine."
+    read -p "🔄 ¿Quieres eliminarlo y recrearlo? (s/n): " RECREATE_SITE
+    if [[ "$RECREATE_SITE" == "s" ]]; then
+        echo "🗑️ Eliminando sitio $FULL_DOMAIN..."
+        ee site delete "$FULL_DOMAIN" --force
+        echo "🚀 Creando sitio nuevamente..."
+        ee site create "$FULL_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
+    else
+        echo "✅ Usando sitio existente en EasyEngine."
+    fi
+else
+    echo "🚀 Creando sitio con EasyEngine..."
+    ee site create "$FULL_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
+fi
+
+# 🏗️ Creación de estructura de proyecto
+mkdir -p "$PROJECT_PATH"
+cd "$PROJECT_PATH" || exit
+echo "📂 Ubicación del proyecto: $(pwd)"
+
+# 📦 Función para crear archivos si no existen
+create_file_if_not_exists() {
+    local file_path="$1"
+    local content="$2"
+
+    if [[ -f "$file_path" ]]; then
+        echo "⚠️ Archivo $file_path ya existe en $(pwd), omitiendo..."
+    else
+        echo "📄 Creando $file_path en $(pwd)..."
+        echo "$content" > "$file_path"
+        echo "🔍 Puedes revisar el archivo en: $(pwd)/$file_path"
+    fi
+}
+
+# 📜 Crear archivos con contenido seguro
+create_file_if_not_exists "requirements.txt" "fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary"
+
+create_file_if_not_exists "Dockerfile" "FROM python:3.11
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"$FASTAPI_PORT\"]"
+
+create_file_if_not_exists "entrypoint.sh" "#!/bin/bash
+echo \"🚀 Iniciando API...\"
+exec uvicorn main:app --host 0.0.0.0 --port $FASTAPI_PORT"
+chmod +x entrypoint.sh  # ✅ Hacer ejecutable
+
+create_file_if_not_exists "docker-compose.yml" "version: \"3.8\"
+services:
+  api:
+    build: .
+    container_name: showroom-api
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - \"$FASTAPI_PORT:$FASTAPI_PORT\"
+    environment:
+      - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@postgres:5432/$DB_NAME
+  postgres:
+    image: postgres:16
+    container_name: showroom-db
+    restart: always
+    environment:
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_PASS
+      POSTGRES_DB: $DB_NAME
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - \"5432:5432\"
+volumes:
+  pgdata:"
+
+# 🔄 Recargar Nginx con EasyEngine
+echo "🔄 Recargando Nginx con EasyEngine..."
+ee site reload "$FULL_DOMAIN"
+
+# ✅ Verificación final
+echo "✅ Verificando configuración..."
+ls -l "$PROJECT_PATH"
+echo "🔍 Puedes revisar los archivos en: $PROJECT_PATH"
+
+echo "🔍 Probando Nginx con EasyEngine:"
+ee site info "$FULL_DOMAIN"
+
+echo "🎉 Setup completado. Ahora puedes ejecutar:"
+echo "👉 docker-compose up -d en $(pwd)"
