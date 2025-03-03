@@ -4,7 +4,7 @@ set -e  # ⛔ Detener ejecución si hay error
 
 # 📌 Variables requeridas
 ENV_FILE=".env"
-REQUIRED_VARS=("DB_USER" "DB_PASS" "DB_NAME" "SITE_DOMAIN" "FASTAPI_PORT")
+REQUIRED_VARS=("DB_USER" "DB_PASS" "DB_NAME" "SITE_DOMAIN" "SUBDOMAIN" "FASTAPI_PORT")
 
 # 🛠️ Función para pedir input con valor por defecto
 ask_var() {
@@ -13,6 +13,18 @@ ask_var() {
     local user_input
 
     read -p "🔹 Ingresa $var_name [$default_value]: " user_input
+    echo "${user_input:-$default_value}"
+}
+
+# 🛠️ Función para pedir contraseña sin mostrar en pantalla
+ask_sensitive_var() {
+    local var_name="$1"
+    local default_value="$2"
+    local user_input
+
+    echo "🔑 Ingresa $var_name (oculto, presiona Enter para usar el valor por defecto)"
+    read -s -p "🔹 Contraseña [$default_value]: " user_input
+    echo ""  # Salto de línea para que no se mezcle con la siguiente salida
     echo "${user_input:-$default_value}"
 }
 
@@ -33,16 +45,21 @@ if [[ ! -f "$ENV_FILE" ]]; then
     echo "⚠️ No se encontró .env. Creando uno nuevo..."
     
     DB_USER=$(ask_var "usuario de la base de datos" "showroom_user")
-    DB_PASS=$(ask_var "contraseña de la base de datos" "SuperSecurePass123")
+    DB_PASS=$(ask_sensitive_var "contraseña de la base de datos" "SuperSecurePass123")
     DB_NAME=$(ask_var "nombre de la base de datos" "showroom_db")
-    SITE_DOMAIN=$(ask_var "dominio del sitio (ej: equalitech.xyz)" "equalitech.xyz")
+    SITE_DOMAIN=$(ask_var "dominio raíz (ej: equalitech.xyz)" "equalitech.xyz")
+    SUBDOMAIN=$(ask_var "subdominio del sitio (ej: tl-showroom)" "tl-showroom")
     FASTAPI_PORT=$(ask_var "puerto para FastAPI" "8000")
+
+    FULL_DOMAIN="$SUBDOMAIN.$SITE_DOMAIN"
 
     cat <<EOF > "$ENV_FILE"
 DB_USER=$DB_USER
 DB_PASS=$DB_PASS
 DB_NAME=$DB_NAME
 SITE_DOMAIN=$SITE_DOMAIN
+SUBDOMAIN=$SUBDOMAIN
+FULL_DOMAIN=$FULL_DOMAIN
 FASTAPI_PORT=$FASTAPI_PORT
 EOF
 
@@ -61,8 +78,8 @@ for var in "${REQUIRED_VARS[@]}"; do
     fi
 done
 
-PROJECT_PATH="/opt/easyengine/sites/$SITE_DOMAIN/app/backend"
-NGINX_CONFIG="/opt/easyengine/sites/$SITE_DOMAIN/config/nginx/custom/user.conf"
+PROJECT_PATH="/opt/easyengine/sites/$FULL_DOMAIN/app/backend"
+NGINX_CONFIG="/opt/easyengine/sites/$FULL_DOMAIN/config/nginx/custom/user.conf"
 SSL_CERT="/etc/letsencrypt/live/$SITE_DOMAIN/fullchain.pem"
 SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
 
@@ -75,9 +92,9 @@ if [[ ! -f "$SSL_CERT" || ! -f "$SSL_KEY" ]]; then
 fi
 
 # 🌐 Verificar si el sitio existe en EasyEngine
-if ! ee site list | grep -q "$SITE_DOMAIN"; then
+if ! ee site list | grep -q "$FULL_DOMAIN"; then
     echo "🚀 Creando sitio con EasyEngine..."
-    ee site create "$SITE_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
+    ee site create "$FULL_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
 else
     echo "✅ Sitio ya existe, omitiendo creación..."
 fi
@@ -153,7 +170,7 @@ if [[ ! -f "$NGINX_CONFIG" ]]; then
 server {
     listen 80;
     listen [::]:80;
-    server_name $SITE_DOMAIN;
+    server_name $FULL_DOMAIN;
     location / {
         proxy_pass http://127.0.0.1:$FASTAPI_PORT;
         proxy_set_header Host \$host;
@@ -170,7 +187,7 @@ fi
 
 # 🔄 Recargar Nginx con EasyEngine
 echo "🔄 Recargando Nginx con EasyEngine..."
-ee site reload "$SITE_DOMAIN"
+ee site reload "$FULL_DOMAIN"
 
 # ✅ Verificación final
 echo "✅ Verificando configuración..."
@@ -178,7 +195,7 @@ ls -l "$PROJECT_PATH"
 echo "🔍 Puedes revisar los archivos en: $PROJECT_PATH"
 
 echo "🔍 Probando Nginx con EasyEngine:"
-ee site info "$SITE_DOMAIN"
+ee site info "$FULL_DOMAIN"
 
 echo "🎉 Setup completado. Ahora puedes ejecutar:"
 echo "👉 docker-compose up -d en $(pwd)"
