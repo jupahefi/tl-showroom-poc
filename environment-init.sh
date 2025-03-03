@@ -1,65 +1,44 @@
 #!/bin/bash
 
-set -e  # Detener el script en caso de error
+set -e  # ⛔ Detener ejecución si ocurre un error
 
-# 📌 Cargar variables desde .env si existe
-if [ -f ".env" ]; then
-    export $(grep -v '^#' .env | xargs)
-else
-    echo "⚠️ No se encontró .env, utilizando configuración manual."
-fi
-
-# 🌎 Solicitar configuración solo si no está en .env
-echo "🌎 Ingresa el dominio del sitio (ej: equalitech.xyz):"
-read -r SITE_DOMAIN
-
-echo "🔹 Ingresa el subdominio (ej: tl-showroom):"
-read -r SUBDOMAIN
-
-echo "👤 Ingresa el nombre de usuario de la base de datos:"
-read -r DB_USER
-
-echo "🔑 Ingresa la contraseña para $DB_USER:"
-read -s DB_PASS
-
-echo "🗄️ Ingresa el nombre de la base de datos:"
-read -r DB_NAME
-
-FULL_DOMAIN="$SUBDOMAIN.$SITE_DOMAIN"
-PROJECT_PATH="/opt/easyengine/sites/$FULL_DOMAIN/app/backend"
-NGINX_CONFIG="/opt/easyengine/sites/$FULL_DOMAIN/config/nginx/custom/user.conf"
-SSL_CERT="/etc/letsencrypt/live/$SITE_DOMAIN/fullchain.pem"
-SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
-
-# 🔒 **Verificar si los certificados existen**
-if [ ! -f "$SSL_CERT" ] || [ ! -f "$SSL_KEY" ]; then
-    echo "❌ ERROR: No se encontraron los certificados SSL para $SITE_DOMAIN."
-    echo "🔍 Revisa que existan en /etc/letsencrypt/live/$SITE_DOMAIN/"
-    echo "🚫 Abortando script."
-    exit 1
-fi
-
-# 📌 Instalar dependencias si faltan
-install_if_missing() {
-    if ! command -v "$1" &> /dev/null; then
-        echo "🚀 Instalando $1..."
-        sudo apt-get update && sudo apt-get install -y "$2"
-    else
-        echo "✅ $1 ya está instalado."
+# 📌 Función para verificar si una variable está definida
+check_env_var() {
+    local var_name="$1"
+    if [[ -z "${!var_name}" ]]; then
+        echo "❌ ERROR: La variable $var_name no está definida en el .env"
+        exit 1
     fi
 }
 
-install_if_missing "docker" "docker.io"
-install_if_missing "docker-compose" "docker-compose"
-install_if_missing "ee" "easyengine"
+# 🚀 Cargar configuración desde .env si existe
+if [[ -f .env ]]; then
+    echo "📂 Cargando configuración desde .env..."
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# 🏗️ Verificar variables obligatorias
+check_env_var "DB_USER"
+check_env_var "DB_PASS"
+check_env_var "DB_NAME"
+check_env_var "SITE_DOMAIN"
+check_env_var "FASTAPI_PORT"
+
+PROJECT_PATH="/opt/easyengine/sites/$SITE_DOMAIN/app/backend"
+NGINX_CONFIG="/opt/easyengine/sites/$SITE_DOMAIN/config/nginx/custom/user.conf"
+SSL_CERT="/etc/letsencrypt/live/$SITE_DOMAIN/fullchain.pem"
+SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
+
+# 🔐 Verificar si los certificados existen antes de continuar
+if [[ ! -f "$SSL_CERT" || ! -f "$SSL_KEY" ]]; then
+    echo "❌ ERROR: No se encontraron los certificados SSL en $SSL_CERT y $SSL_KEY"
+    exit 1
+fi
 
 # 🌐 Verificar si el sitio existe en EasyEngine
-if ! ee site list | grep -q "$FULL_DOMAIN"; then
+if ! ee site list | grep -q "$SITE_DOMAIN"; then
     echo "🚀 Creando sitio con EasyEngine..."
-    ee site create "$FULL_DOMAIN" \
-        --ssl=custom \
-        --ssl-crt="$SSL_CERT" \
-        --ssl-key="$SSL_KEY"
+    ee site create "$SITE_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
 else
     echo "✅ Sitio ya existe, omitiendo creación..."
 fi
@@ -69,49 +48,38 @@ echo "🔧 Creando estructura de directorios..."
 mkdir -p "$PROJECT_PATH"
 cd "$PROJECT_PATH" || exit
 
-# 📦 Creación de archivos del proyecto
-echo "📦 Creando .env..."
-cat <<EOF > .env
-DB_USER=$DB_USER
-DB_PASS=$DB_PASS
-DB_NAME=$DB_NAME
-SITE_DOMAIN=$SITE_DOMAIN
-SUBDOMAIN=$SUBDOMAIN
-FULL_DOMAIN=$FULL_DOMAIN
-EOF
+# 📦 Creación de archivos del proyecto (si no existen)
+create_file_if_not_exists() {
+    local file_path="$1"
+    local content="$2"
 
-echo "📦 Creando requirements.txt..."
-cat <<EOF > requirements.txt
-fastapi
+    if [[ -f "$file_path" ]]; then
+        echo "⚠️ Archivo $file_path ya existe, omitiendo..."
+    else
+        echo "📄 Creando $file_path..."
+        echo "$content" > "$file_path"
+    fi
+}
+
+# 📜 Crear archivos con contenido seguro
+create_file_if_not_exists "requirements.txt" "fastapi
 uvicorn
 sqlalchemy
-psycopg2-binary
-EOF
+psycopg2-binary"
 
-echo "🐍 Creando Dockerfile..."
-cat <<EOF > Dockerfile
-FROM python:3.11
-
+create_file_if_not_exists "Dockerfile" "FROM python:3.11
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-EOF
+CMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"$FASTAPI_PORT\"]"
 
-echo "🚀 Creando entrypoint.sh..."
-cat <<EOF > entrypoint.sh
-#!/bin/bash
-echo "🚀 Iniciando API..."
-exec uvicorn main:app --host 0.0.0.0 --port 8000
-EOF
-chmod +x entrypoint.sh
+create_file_if_not_exists "entrypoint.sh" "#!/bin/bash
+echo \"🚀 Iniciando API...\"
+exec uvicorn main:app --host 0.0.0.0 --port $FASTAPI_PORT"
+chmod +x entrypoint.sh  # ✅ Hacer ejecutable
 
-echo "📜 Creando docker-compose.yml con PostgreSQL..."
-cat <<EOF > docker-compose.yml
-version: "3.8"
-
+create_file_if_not_exists "docker-compose.yml" "version: \"3.8\"
 services:
   api:
     build: .
@@ -120,37 +88,34 @@ services:
     depends_on:
       - postgres
     ports:
-      - "8000:8000"
+      - \"$FASTAPI_PORT:$FASTAPI_PORT\"
     environment:
-      - DATABASE_URL=postgresql://\$DB_USER:\$DB_PASS@postgres:5432/\$DB_NAME
-
+      - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@postgres:5432/$DB_NAME
   postgres:
     image: postgres:16
     container_name: tl-showroom-db
     restart: always
     environment:
-      POSTGRES_USER: \$DB_USER
-      POSTGRES_PASSWORD: \$DB_PASS
-      POSTGRES_DB: \$DB_NAME
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_PASS
+      POSTGRES_DB: $DB_NAME
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
-
+      - \"5432:5432\"
 volumes:
-  pgdata:
-EOF
+  pgdata:"
 
-# 🔄 Configuración de Nginx como proxy inverso
-echo "🌐 Configurando Nginx como proxy inverso..."
-cat <<EOF > "$NGINX_CONFIG"
+# 🔄 Configuración de Nginx como proxy inverso (solo si no existe)
+if [[ ! -f "$NGINX_CONFIG" ]]; then
+    echo "🌐 Configurando Nginx como proxy inverso..."
+    cat <<EOF > "$NGINX_CONFIG"
 server {
     listen 80;
     listen [::]:80;
-    server_name $FULL_DOMAIN;
-
+    server_name $SITE_DOMAIN;
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:$FASTAPI_PORT;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -158,16 +123,19 @@ server {
     }
 }
 EOF
+else
+    echo "⚠️ Configuración de Nginx ya existe, omitiendo..."
+fi
 
 # 🔄 Recargar Nginx
 echo "🔄 Recargando Nginx..."
-ee site reload "$FULL_DOMAIN"
+ee site reload "$SITE_DOMAIN"
 
 # ✅ Verificación final
 echo "✅ Verificando configuración..."
 ls -l "$PROJECT_PATH"
 nginx -t
-curl -I "http://$FULL_DOMAIN"
+curl -I "http://$SITE_DOMAIN"
 
 echo "🎉 Setup completado. Ahora puedes ejecutar:"
 echo "👉 docker-compose up -d"
