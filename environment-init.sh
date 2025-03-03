@@ -1,35 +1,43 @@
 #!/bin/bash
 
-set -e  # ⛔ Detener ejecución si ocurre un error
+set -e  # ⛔ Detener ejecución si hay error
 
-# 📌 Función para verificar si una variable está definida
-check_env_var() {
-    local var_name="$1"
-    if [[ -z "${!var_name}" ]]; then
-        echo "❌ ERROR: La variable $var_name no está definida en el .env"
-        exit 1
-    fi
-}
+# 📌 Variables requeridas
+ENV_FILE=".env"
+REQUIRED_VARS=("DB_USER" "DB_PASS" "DB_NAME" "SITE_DOMAIN" "FASTAPI_PORT")
 
-# 🚀 Cargar configuración desde .env si existe
-if [[ -f .env ]]; then
-    echo "📂 Cargando configuración desde .env..."
-    export $(grep -v '^#' .env | xargs)
+# 📂 Si el .env no existe, crearlo con valores por defecto
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "⚠️ Archivo .env no encontrado. Creando uno nuevo..."
+    cat <<EOF > "$ENV_FILE"
+DB_USER=showroom_user
+DB_PASS=SuperSecurePass123
+DB_NAME=showroom_db
+SITE_DOMAIN=equalitech.xyz
+FASTAPI_PORT=8000
+EOF
+    echo "✅ Archivo .env creado con valores por defecto. ¡Revísalo antes de ejecutar el script!"
+    exit 0  # 🛑 Detener ejecución para que el usuario revise el .env
 fi
 
-# 🏗️ Verificar variables obligatorias
-check_env_var "DB_USER"
-check_env_var "DB_PASS"
-check_env_var "DB_NAME"
-check_env_var "SITE_DOMAIN"
-check_env_var "FASTAPI_PORT"
+# 🚀 Cargar configuración desde .env
+echo "📂 Cargando configuración desde .env..."
+export $(grep -v '^#' "$ENV_FILE" | xargs)
+
+# 🔍 Validar variables requeridas
+for var in "${REQUIRED_VARS[@]}"; do
+    if [[ -z "${!var}" ]]; then
+        echo "❌ ERROR: La variable $var no está definida en el .env"
+        exit 1
+    fi
+done
 
 PROJECT_PATH="/opt/easyengine/sites/$SITE_DOMAIN/app/backend"
 NGINX_CONFIG="/opt/easyengine/sites/$SITE_DOMAIN/config/nginx/custom/user.conf"
 SSL_CERT="/etc/letsencrypt/live/$SITE_DOMAIN/fullchain.pem"
 SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
 
-# 🔐 Verificar si los certificados existen antes de continuar
+# 🔐 Verificar certificados SSL
 if [[ ! -f "$SSL_CERT" || ! -f "$SSL_KEY" ]]; then
     echo "❌ ERROR: No se encontraron los certificados SSL en $SSL_CERT y $SSL_KEY"
     exit 1
@@ -44,11 +52,10 @@ else
 fi
 
 # 🏗️ Creación de estructura de proyecto
-echo "🔧 Creando estructura de directorios..."
 mkdir -p "$PROJECT_PATH"
 cd "$PROJECT_PATH" || exit
 
-# 📦 Creación de archivos del proyecto (si no existen)
+# 📦 Función para crear archivos si no existen
 create_file_if_not_exists() {
     local file_path="$1"
     local content="$2"
@@ -83,7 +90,7 @@ create_file_if_not_exists "docker-compose.yml" "version: \"3.8\"
 services:
   api:
     build: .
-    container_name: tl-showroom-api
+    container_name: showroom-api
     restart: always
     depends_on:
       - postgres
@@ -93,7 +100,7 @@ services:
       - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@postgres:5432/$DB_NAME
   postgres:
     image: postgres:16
-    container_name: tl-showroom-db
+    container_name: showroom-db
     restart: always
     environment:
       POSTGRES_USER: $DB_USER
@@ -106,7 +113,7 @@ services:
 volumes:
   pgdata:"
 
-# 🔄 Configuración de Nginx como proxy inverso (solo si no existe)
+# 🔄 Configuración de Nginx (si no existe)
 if [[ ! -f "$NGINX_CONFIG" ]]; then
     echo "🌐 Configurando Nginx como proxy inverso..."
     cat <<EOF > "$NGINX_CONFIG"
