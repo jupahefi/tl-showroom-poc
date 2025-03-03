@@ -103,7 +103,7 @@ if ee site list | grep -q "$FULL_DOMAIN"; then
     read -p "🔄 ¿Quieres eliminarlo y recrearlo? (s/n): " RECREATE_SITE
     if [[ "$RECREATE_SITE" == "s" ]]; then
         echo "🗑️ Eliminando sitio $FULL_DOMAIN..."
-        ee site delete $FULL_DOMAIN
+        ee site delete "$FULL_DOMAIN"
         echo "🚀 Creando sitio nuevamente..."
         ee site create "$FULL_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
     else
@@ -119,17 +119,24 @@ mkdir -p "$PROJECT_PATH"
 cd "$PROJECT_PATH" || exit
 echo "📂 Ubicación del proyecto: $(pwd)"
 
-# 📦 Función para crear archivos si no existen
+# 📦 Función para crear archivos si no existen o reemplazarlos
 create_file_if_not_exists() {
     local file_path="$1"
     local content="$2"
 
     if [[ -f "$file_path" ]]; then
-        echo "⚠️ Archivo $file_path ya existe en $(pwd), omitiendo..."
+        read -p "⚠️ El archivo $file_path ya existe. ¿Quieres reemplazarlo? (s/n): " RECREATE_FILE
+        if [[ "$RECREATE_FILE" == "s" ]]; then
+            echo "🗑️ Eliminando $file_path..."
+            rm "$file_path"
+            echo "📄 Creando $file_path en $(pwd)..."
+            echo "$content" > "$file_path"
+        else
+            echo "✅ Conservando archivo existente: $file_path"
+        fi
     else
         echo "📄 Creando $file_path en $(pwd)..."
         echo "$content" > "$file_path"
-        echo "🔍 Puedes revisar el archivo en: $(pwd)/$file_path"
     fi
 }
 
@@ -182,13 +189,5 @@ volumes:
 echo "🔄 Recargando Nginx con EasyEngine..."
 ee site reload "$FULL_DOMAIN"
 
-# ✅ Verificación final
-echo "✅ Verificando configuración..."
-ls -l "$PROJECT_PATH"
-echo "🔍 Puedes revisar los archivos en: $PROJECT_PATH"
-
-echo "🔍 Probando Nginx con EasyEngine:"
-ee site info "$FULL_DOMAIN"
-
-echo "🎉 Setup completado. Ahora puedes ejecutar:"
-echo "👉 docker-compose up -d en $(pwd)"
+echo "🎉 Setup completado."
+echo "👉 Ahora ejecuta: cd $PROJECT_PATH && docker-compose up -d"
