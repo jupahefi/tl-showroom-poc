@@ -66,9 +66,11 @@ EOF
     echo "✅ Archivo .env creado en $(pwd). 📂 Revísalo antes de continuar."
 fi
 
-# 🚀 Cargar configuración desde .env
+# 🚀 Cargar configuración desde .env (método seguro)
 echo "📂 Cargando configuración desde $(pwd)/.env..."
-export $(grep -v '^#' "$ENV_FILE" | xargs)
+set -o allexport
+source "$ENV_FILE"
+set +o allexport
 
 # 🔍 Validar que todas las variables están definidas
 for var in "${REQUIRED_VARS[@]}"; do
