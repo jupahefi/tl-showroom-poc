@@ -24,7 +24,7 @@ ask_sensitive_var() {
 
     echo "🔑 Ingresa $var_name (oculto, presiona Enter para usar el valor por defecto)"
     read -s -p "🔹 Contraseña [$default_value]: " user_input
-    echo ""  # Salto de línea para que no se mezcle con la siguiente salida
+    echo ""  # Salto de línea para evitar que la siguiente salida se mezcle
     echo "${user_input:-$default_value}"
 }
 
@@ -54,13 +54,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
     FULL_DOMAIN="$SUBDOMAIN.$SITE_DOMAIN"
 
     cat <<EOF > "$ENV_FILE"
-DB_USER=$DB_USER
-DB_PASS=$DB_PASS
-DB_NAME=$DB_NAME
-SITE_DOMAIN=$SITE_DOMAIN
-SUBDOMAIN=$SUBDOMAIN
-FULL_DOMAIN=$FULL_DOMAIN
-FASTAPI_PORT=$FASTAPI_PORT
+DB_USER="$DB_USER"
+DB_PASS="$DB_PASS"
+DB_NAME="$DB_NAME"
+SITE_DOMAIN="$SITE_DOMAIN"
+SUBDOMAIN="$SUBDOMAIN"
+FULL_DOMAIN="$FULL_DOMAIN"
+FASTAPI_PORT="$FASTAPI_PORT"
 EOF
 
     echo "✅ Archivo .env creado en $(pwd). 📂 Revísalo antes de continuar."
