@@ -103,7 +103,7 @@ if ee site list | grep -q "$FULL_DOMAIN"; then
     read -p "🔄 ¿Quieres eliminarlo y recrearlo? (s/n): " RECREATE_SITE
     if [[ "$RECREATE_SITE" == "s" ]]; then
         echo "🗑️ Eliminando sitio $FULL_DOMAIN..."
-        ee site delete "$FULL_DOMAIN" --yes
+        ee site delete $FULL_DOMAIN
         echo "🚀 Creando sitio nuevamente..."
         ee site create "$FULL_DOMAIN" --ssl=custom --ssl-crt="$SSL_CERT" --ssl-key="$SSL_KEY"
     else
