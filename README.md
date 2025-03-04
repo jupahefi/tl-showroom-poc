@@ -7,4 +7,4 @@ para editar:
 nano archivo.sh
 
 para ejecutar: 
-bash archivo.sd
+bash archivo.sh
