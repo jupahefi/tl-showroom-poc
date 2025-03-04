@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 set -e  # ⛔ Detener ejecución si hay error
 
 sudo apt update && sudo apt install gh -y
