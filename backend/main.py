@@ -4,7 +4,7 @@ import os
 
 app = FastAPI()
 
-# 📌 Configurar conexión a PostgreSQL usando variables de entorno
+# 📌 Configuración de PostgreSQL usando variables de entorno
 DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_NAME = os.getenv("DB_NAME", "showroom_db")
 DB_USER = os.getenv("DB_USER", "showroom_user")
