@@ -1,113 +1,59 @@
-🚀 Infraestructura Fullstack Ágil con EasyEngine, Docker y GitHub Actions
+# 📌 Configuración de SSH para Despliegue en el Servidor
 
-🔍 La Solución: Despliegue Automático de Aplicaciones Web
+Antes de poder desplegar correctamente en el servidor, es necesario configurar las claves SSH en la máquina local y en el servidor. Sigue estos pasos para asegurarte de que la autenticación funcione correctamente.
 
-Este framework permite desplegar y administrar aplicaciones web automáticamente, eliminando la fricción técnica y reduciendo el tiempo de configuración de días a minutos.
-
-✔️ Ideal para desarrolladores y equipos que quieren enfocarse en código, no en infraestructura.
-✔️ Manejo automatizado de servidores, dominios, SSL, backend y frontend.
-✔️ Integrado con GitHub para versionado y despliegue continuo.
-
-🛠️ ¿Qué incluye esta infraestructura?
-
-📌 Administración de Infraestructura
-
-✅ EasyEngine: Administra sitios con Nginx + Docker + Let’s Encrypt (SSL)
-✅ Firewall (UFW): Protege el backend, permitiendo solo acceso interno desde Docker
-✅ GitHub CLI: Creación automática de repositorios y subida de código
-✅ GitHub Actions (en progreso): Automatización del despliegue
-
-📌 Backend (FastAPI + Docker)
-
-✅ API en FastAPI
-✅ Aislado con Docker y solo accesible desde la red interna
-✅ Configurado para PostgreSQL con Docker Compose
-
-📌 Frontend (Vue + Vite)
-
-✅ Construcción y despliegue automático con Nginx
-✅ Optimizado para producción
-
-📜 Scripts de Infraestructura
-
-🔹 environment-init.sh
-
-Configura el entorno y solicita al usuario solo los datos mínimos necesarios:
-📌 Dominio raíz y subdominio
-📌 Credenciales de base de datos
-📌 Puerto del backend
-
-🔹 backend-init.sh
-
-📌 Crea la API en FastAPI dentro de un contenedor Docker
-📌 Configura la base de datos PostgreSQL con Docker Compose
-📌 Asegura que solo el frontend puede acceder al backend mediante UFW
-
-🔹 frontend-init.sh
-
-📌 Configura Vue + Vite y lo despliega automáticamente en el servidor
-📌 Mueve los archivos estáticos al servidor de EasyEngine
-📌 Se asegura de que Nginx sirva el frontend correctamente
-
-🔹 fullstack-repos-init.sh
-
-📌 Crea y configura repositorios en GitHub automáticamente
-📌 Sube el código de backend y frontend a GitHub
-📌 Se prepara para integración con GitHub Actions
-
-⚠️ Estado actual
-
-# 🚀 Configuración manual de claves SSH y despliegue
-
-## 1️⃣ **Generar clave SSH manualmente**
-En tu máquina local, genera una clave SSH:
+## **1️⃣ Verificar si ya tienes una clave SSH**
+Ejecuta el siguiente comando para ver si tienes claves SSH existentes:
 ```bash
-ssh-keygen -t rsa -b 4096 -m PEM -C "deploy@github-actions" -f ~/.ssh/github_actions_key -N ""
+ls -la ~/.ssh/
 ```
-Esto generará dos archivos:
-- `~/.ssh/github_actions_key` (clave privada)
-- `~/.ssh/github_actions_key.pub` (clave pública)
+Si ves archivos como `id_rsa` y `id_rsa.pub`, entonces ya tienes una clave SSH generada.
 
-## 2️⃣ **Agregar la clave pública al servidor**
-
-Copia manualmente la clave pública al servidor:
+Para visualizar tu clave pública, usa:
 ```bash
-cat ~/.ssh/github_actions_key.pub | ssh root@tl-showroom.equalitech.xyz "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-```
-Si tienes acceso físico al servidor, también puedes agregar la clave en `~/.ssh/authorized_keys` manualmente.
-
-## 3️⃣ **Agregar la clave privada a GitHub Secrets**
-Para cada repositorio, agrega la clave privada como secreto:
-```bash
-gh secret set SSH_PRIVATE_KEY --body "$(cat ~/.ssh/github_actions_key)" --repo jupahefi/tl-showroom-backend-poc
-gh secret set SSH_PRIVATE_KEY --body "$(cat ~/.ssh/github_actions_key)" --repo jupahefi/tl-showroom-frontend-poc
+cat ~/.ssh/id_rsa.pub
 ```
 
-## 4️⃣ **Configurar el despliegue manualmente**
-Dentro del servidor, asegúrate de que los permisos son correctos:
+## **2️⃣ Generar una nueva clave SSH (si no tienes una)**
+Si no tienes una clave, genera una nueva:
 ```bash
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/authorized_keys
+ssh-keygen -t rsa -b 4096 -C "juan@macbook"
 ```
-Luego, prueba la conexión:
-```bash
-ssh -i ~/.ssh/github_actions_key root@tl-showroom.equalitech.xyz
-```
-Si todo está correcto, deberías poder conectarte sin problemas.
+📍 **Nota**: No sobrescribas una clave existente a menos que estés seguro. Si ya tienes `id_rsa`, usa un nombre como `id_rsa_nueva`.
 
-## 5️⃣ **Desplegar manualmente**
-Para desplegar en el servidor, ejecuta:
+Luego, agrega la clave al **agente SSH**:
 ```bash
-ssh -i ~/.ssh/github_actions_key root@tl-showroom.equalitech.xyz << 'EOF'
-cd /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend
-git pull origin main
-bash deploy.sh
-EOF
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
 ```
 
+## **3️⃣ Agregar la clave pública en el servidor**
+Una vez que tengas la clave pública (`id_rsa.pub`), necesitas copiarla al servidor:
 
+Si `ssh-copy-id` está disponible:
+```bash
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@equalitech.xyz
+```
 
-🚧 Frontend aún no se comunica correctamente con el backend (error menor por resolver).
-🚧 GitHub Actions en proceso de optimización para despliegue automático.
+Si no, agrégala manualmente:
+```bash
+cat ~/.ssh/id_rsa.pub | ssh root@equalitech.xyz "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
 
-Con esta infraestructura, crear, desplegar y administrar una aplicación web completa se reduce a ejecutar un par de scripts. 🏗️⚡
+## **4️⃣ Liberar el servidor de claves antiguas (opcional, si hay problemas)**
+Si cambiaste de clave, libera el servidor de registros antiguos:
+```bash
+ssh-keygen -R equalitech.xyz
+ssh-keygen -R 64.176.8.31  # Si lo tienes guardado por IP
+```
+
+## **5️⃣ Probar conexión SSH**
+Intenta conectarte para verificar que todo esté funcionando:
+```bash
+ssh root@equalitech.xyz
+```
+Si la conexión es exitosa, ya puedes proceder con el despliegue.
+
+---
+✅ **Con esta configuración, el servidor está listo para recibir despliegues desde GitHub Actions y desde tu máquina local!** 🚀
+
