@@ -2,87 +2,65 @@
 
 set -e  # ⛔ Detener ejecución si hay error
 
-# 📌 Configuración del repositorio y servidor
+# 📌 Configuración
 GITHUB_USER="jupahefi"
 BACKEND_REPO="tl-showroom-backend-poc"
 FRONTEND_REPO="tl-showroom-frontend-poc"
-SERVER_USER="usuario"   # Cambia esto por tu usuario SSH
-SERVER_IP="tu-servidor" # IP o dominio del servidor
+SERVER_IP="tl-showroom.equalitech.xyz"
 
 # 📂 Rutas en el servidor
 BACKEND_PATH="/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
 FRONTEND_PATH="/opt/frontend/showroom-frontend"
 
-# 🔐 Configurar SSH para GitHub Actions
-echo "🔑 Generando clave SSH para GitHub Actions..."
-ssh-keygen -t rsa -b 4096 -C "deploy@github-actions" -f github_actions_key -N ""
-echo "✅ Clave SSH generada: github_actions_key"
+# 🛠 **Eliminar workflows previos y crear nuevos**
+WORKFLOW_DIR=".github/workflows"
+for REPO_PATH in "$BACKEND_PATH" "$FRONTEND_PATH"; do
+    echo "🗑️ Eliminando archivos de workflows en $REPO_PATH..."
+    rm -rf "$REPO_PATH/$WORKFLOW_DIR"
+    mkdir -p "$REPO_PATH/$WORKFLOW_DIR"
 
-echo "📋 Copia esta clave pública y agrégala en GitHub → Settings → Deploy Keys en ambos repos:"
-cat github_actions_key.pub
-echo "⚠️ Presiona ENTER cuando hayas agregado la clave en ambos repos"
-read
-
-# 🛠️ Agregar la clave privada como GitHub Secret en ambos repos
-echo "🔐 Agregando clave privada a GitHub Secrets..."
-gh secret set SSH_PRIVATE_KEY --body "$(cat github_actions_key)" --repo "$GITHUB_USER/$BACKEND_REPO"
-gh secret set SSH_PRIVATE_KEY --body "$(cat github_actions_key)" --repo "$GITHUB_USER/$FRONTEND_REPO"
-echo "✅ Clave agregada a los secrets de GitHub."
-
-# 🚀 Función para crear el workflow
-create_workflow() {
-    local repo_path="$1"
-    local repo_name="$2"
-    local workflow_file="$repo_path/.github/workflows/deploy.yml"
-
-    echo "📄 Creando workflow en $repo_name..."
-    mkdir -p "$repo_path/.github/workflows"
-
-    cat <<EOF > "$workflow_file"
-name: Deploy $repo_name
+    echo "📄 Creando nuevo workflow en $REPO_PATH..."
+    cat <<EOF > "$REPO_PATH/$WORKFLOW_DIR/deploy.yml"
+name: 🚀 Deploy to Server
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
+      - name: 📥 Checkout del código
+        uses: actions/checkout@v3
 
-      - name: Desplegar en el servidor
-        env:
-          SSH_PRIVATE_KEY: \${{ secrets.SSH_PRIVATE_KEY }}
+      - name: 🚀 Desplegar en servidor
         run: |
-          echo "\$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -i private_key $SERVER_USER@$SERVER_IP "cd $repo_path && git pull origin main && ./deploy.sh"
+          ssh -v -o StrictHostKeyChecking=no root@$SERVER_IP << 'EOF'
+          cd $REPO_PATH
+          git pull origin main
+          bash deploy.sh
+          EOF
 EOF
-    echo "✅ Workflow creado en $repo_name"
-}
+    echo "✅ Workflow creado en $REPO_PATH/$WORKFLOW_DIR/deploy.yml"
+done
 
-# 📦 Crear workflows en backend y frontend
-create_workflow "$BACKEND_PATH" "$BACKEND_REPO"
-create_workflow "$FRONTEND_PATH" "$FRONTEND_REPO"
+# 🚀 **Subir los nuevos workflows a GitHub**
+for REPO_PATH in "$BACKEND_PATH" "$FRONTEND_PATH"; do
+    echo "🚀 Subiendo nuevos workflows a GitHub desde $REPO_PATH..."
+    cd "$REPO_PATH"
+    git add "$WORKFLOW_DIR"
+    git commit -m "Reinicialización de GitHub Actions" || echo "⚠️ No hay cambios para commit"
+    git push -f origin main || echo "⚠️ Error en git push, verificando conexión..."
+done
+echo "✅ Workflows reiniciados y desplegados."
 
-# 🚀 Hacer commit y push de los workflows
-commit_and_push() {
-    local repo_path="$1"
-    local repo_name="$2"
+# 🚀 **Gatillar los workflows manualmente**
+echo "🚀 Gatillando despliegues..."
+gh workflow run deploy.yml --repo "$GITHUB_USER/$BACKEND_REPO"
+gh workflow run deploy.yml --repo "$GITHUB_USER/$FRONTEND_REPO"
 
-    echo "📤 Subiendo workflow a $repo_name..."
-    cd "$repo_path"
-    git add .github/workflows/deploy.yml
-    git commit -m "Add GitHub Actions workflow for deployment"
-    git push origin main
-    echo "✅ Workflow subido a $repo_name"
-}
-
-commit_and_push "$BACKEND_PATH" "$BACKEND_REPO"
-commit_and_push "$FRONTEND_PATH" "$FRONTEND_REPO"
-
-echo "🎉 ¡Workflows de GitHub Actions creados y subidos! 🚀"
-echo "👉 Ahora cada push a 'main' hará deploy automático en el servidor."
+echo "🎉 GitHub Actions listos y ejecutándose!"
