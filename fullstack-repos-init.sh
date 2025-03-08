@@ -124,6 +124,7 @@ docker-compose up -d
 
 echo "🔍 Verificando estado del backend..."
 docker ps | grep showroom-api
+docker network connect tl-showroomequalitechxyz_tl-showroom.equalitech.xyz showroom-api
 
 echo "✅ Despliegue del backend completado."
 EOF
@@ -155,6 +156,7 @@ rsync -av --delete dist/ /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/ht
 
 echo "🔄 Recargando Nginx..."
 ee site reload tl-showroom.equalitech.xyz
+docker network connect tl-showroomequalitechxyz_tl-showroom.equalitech.xyz showroom-api
 
 echo "✅ Despliegue del frontend completado."
 EOF
