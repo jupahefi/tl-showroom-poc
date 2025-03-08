@@ -41,7 +41,7 @@ Configura **GitHub Actions** para CI/CD en ambos repositorios.
 ```bash
 bash connection_backend_frontend.sh
 ```
-Conecta el backend (Docker) con el frontend (EasyEngine) permitiendo que Nginx acceda correctamente a FastAPI.
+Conecta el backend (Docker) con el frontend (EasyEngine) permitiendo que Nginx acceda correctamente a FastAPI. Este último paso está automatizado en los workflows de github actions.
 
 ---
 
