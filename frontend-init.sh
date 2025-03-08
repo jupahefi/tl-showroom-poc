@@ -131,6 +131,16 @@ npm run build
 echo "📂 Moviendo archivos estáticos a /htdocs..."
 rsync -av --delete /opt/frontend/showroom-frontend/dist/ /opt/easyengine/sites/$DOMAIN/app/htdocs/
 
+# 📄 Configurar Nginx con el backend correcto
+create_or_replace_file "/opt/easyengine/sites/$DOMAIN/config/nginx/custom/user.conf" \
+"location /api/ {
+    proxy_pass http://showroom-api:8000;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+}"
+
 # 🔄 Recargar Nginx con EasyEngine
 echo "🔄 Recargando Nginx con EasyEngine..."
 ee site reload "$DOMAIN"
