@@ -2,6 +2,8 @@
 
 set -e  # ⛔ Detener ejecución si hay error
 
+echo "🚀 Iniciando despliegue de Tech Dash..."
+
 # 📌 Instalar `gh` si no está presente
 if ! command -v gh &>/dev/null; then
     echo "🔹 Instalando GitHub CLI..."
@@ -81,35 +83,105 @@ init_repo() {
         git checkout main
     fi
 
-    # 3️⃣ Resolver conflictos en deploy.yml si existen (IGNORANDO Initial commit)
-    if git status | grep -q ".github/workflows/deploy.yml"; then
-        echo "⚠️ Conflicto detectado en deploy.yml, resolviendo automáticamente..."
-        git checkout --theirs .github/workflows/deploy.yml
-        git add .github/workflows/deploy.yml
-        git rebase --continue || git rebase --abort
-    fi
-
-    # 4️⃣ Resetea si hay inconsistencias y forzar el pull ignorando `Initial commit`
+    # 3️⃣ Resetea si hay inconsistencias y forzar el pull ignorando `Initial commit`
     if git status | grep -q "Initial commit"; then
         echo "⚠️ Detectado conflicto de 'Initial commit'. Forzando pull..."
         git fetch origin main
         git reset --hard origin/main
     else
         echo "🔄 Sincronizando con el remoto..."
-        #git pull --rebase origin main || echo "⚠️ No se pudo hacer pull, continuando..."
-	git rebase --continue
+        git pull --rebase origin main || git rebase --continue
     fi
-
-    echo "📦 Agregando archivos y haciendo commit..."
-    git add .
-    git commit -m "Sync repo" || echo "⚠️ No hay cambios para commitear"
-
-    echo "🚀 Subiendo cambios a GitHub..."
-    git push -u origin main || echo "⚠️ No se pudo hacer push, revisar conflictos."
 }
 
 # 🏗️ Crear repos y subir código de manera flexible
 init_repo "/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend" "$BACKEND_REPO_URL" "$BACKEND_REPO"
 init_repo "/opt/frontend/showroom-frontend" "$FRONTEND_REPO_URL" "$FRONTEND_REPO"
 
-echo "🎉 Repositorios creados y sincronizados con GitHub."
+# 📌 Crear los scripts de despliegue en los repositorios
+echo "📜 Creando scripts de despliegue..."
+
+# 🚀 Backend Deploy Script
+cat <<EOF > /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend/deploy.sh
+#!/bin/bash
+
+set -e
+
+echo "🚀 Iniciando despliegue del backend..."
+
+PROJECT_PATH="/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
+cd "\$PROJECT_PATH"
+
+echo "📥 Actualizando código fuente desde Git..."
+git pull origin main
+
+echo "🐳 Construyendo imagen de Docker..."
+docker-compose build --no-cache
+
+echo "🔄 Reiniciando backend..."
+docker-compose down
+docker-compose up -d
+
+echo "🔍 Verificando estado del backend..."
+docker ps | grep showroom-api
+
+echo "✅ Despliegue del backend completado."
+EOF
+
+chmod +x /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend/deploy.sh
+
+# 🚀 Frontend Deploy Script
+cat <<EOF > /opt/frontend/showroom-frontend/deploy.sh
+#!/bin/bash
+
+set -e
+
+echo "🚀 Iniciando despliegue del frontend..."
+
+FRONTEND_DIR="/opt/frontend/showroom-frontend"
+cd "\$FRONTEND_DIR"
+
+echo "📥 Actualizando código fuente desde Git..."
+git pull origin main
+
+echo "📦 Instalando dependencias..."
+npm install
+
+echo "🏗️ Construyendo frontend..."
+npm run build
+
+echo "📂 Moviendo archivos estáticos a /htdocs..."
+rsync -av --delete dist/ /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/htdocs/
+
+echo "🔄 Recargando Nginx..."
+ee site reload tl-showroom.equalitech.xyz
+
+echo "✅ Despliegue del frontend completado."
+EOF
+
+chmod +x /opt/frontend/showroom-frontend/deploy.sh
+
+# 📦 Agregar archivos y hacer commit
+echo "📦 Agregando archivos y haciendo commit..."
+cd "/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
+git add deploy.sh
+git commit -m "Agregar script de despliegue del backend" || echo "⚠️ No hay cambios para commitear"
+git push -u origin main || echo "⚠️ No se pudo hacer push, revisar conflictos."
+
+cd "/opt/frontend/showroom-frontend"
+git add deploy.sh
+git commit -m "Agregar script de despliegue del frontend" || echo "⚠️ No hay cambios para commitear"
+git push -u origin main || echo "⚠️ No se pudo hacer push, revisar conflictos."
+
+echo "🎉 Repositorios actualizados con los scripts de despliegue."
+
+# ==================================
+# 🚀 EJECUTAR LOS DEPLOYS
+# ==================================
+echo "🚀 Ejecutando despliegue del backend..."
+/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend/deploy.sh
+
+echo "🚀 Ejecutando despliegue del frontend..."
+/opt/frontend/showroom-frontend/deploy.sh
+
+echo "✅ Despliegue finalizado correctamente."
