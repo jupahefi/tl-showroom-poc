@@ -1,59 +1,72 @@
-# 📌 Configuración de SSH para Despliegue en el Servidor
+# 📌 TL Showroom Infra PoC
 
-Antes de poder desplegar correctamente en el servidor, es necesario configurar las claves SSH en la máquina local y en el servidor. Sigue estos pasos para asegurarte de que la autenticación funcione correctamente.
+Este repositorio contiene scripts automatizados para la instalación y despliegue de una aplicación web fullstack utilizando **EasyEngine**, **Docker Compose**, **FastAPI**, **PostgreSQL**, **Vue 3 + Vite** y **GitHub Actions**.
 
-## **1️⃣ Verificar si ya tienes una clave SSH**
-Ejecuta el siguiente comando para ver si tienes claves SSH existentes:
-```bash
-ls -la ~/.ssh/
-```
-Si ves archivos como `id_rsa` y `id_rsa.pub`, entonces ya tienes una clave SSH generada.
+## 🚀 Tecnologías Utilizadas
 
-Para visualizar tu clave pública, usa:
-```bash
-cat ~/.ssh/id_rsa.pub
-```
-
-## **2️⃣ Generar una nueva clave SSH (si no tienes una)**
-Si no tienes una clave, genera una nueva:
-```bash
-ssh-keygen -t rsa -b 4096 -C "juan@macbook"
-```
-📍 **Nota**: No sobrescribas una clave existente a menos que estés seguro. Si ya tienes `id_rsa`, usa un nombre como `id_rsa_nueva`.
-
-Luego, agrega la clave al **agente SSH**:
-```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_rsa
-```
-
-## **3️⃣ Agregar la clave pública en el servidor**
-Una vez que tengas la clave pública (`id_rsa.pub`), necesitas copiarla al servidor:
-
-Si `ssh-copy-id` está disponible:
-```bash
-ssh-copy-id -i ~/.ssh/id_rsa.pub root@equalitech.xyz
-```
-
-Si no, agrégala manualmente:
-```bash
-cat ~/.ssh/id_rsa.pub | ssh root@equalitech.xyz "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-```
-
-## **4️⃣ Liberar el servidor de claves antiguas (opcional, si hay problemas)**
-Si cambiaste de clave, libera el servidor de registros antiguos:
-```bash
-ssh-keygen -R equalitech.xyz
-ssh-keygen -R 64.176.8.31  # Si lo tienes guardado por IP
-```
-
-## **5️⃣ Probar conexión SSH**
-Intenta conectarte para verificar que todo esté funcionando:
-```bash
-ssh root@equalitech.xyz
-```
-Si la conexión es exitosa, ya puedes proceder con el despliegue.
+- **EasyEngine**: Administra el frontend con **Nginx autoadministrado**.
+- **Docker Compose**: Orquesta el backend con **FastAPI** y **PostgreSQL**.
+- **Vue 3 + Vite**: Framework frontend desplegado mediante EasyEngine.
+- **GitHub CLI + GitHub Actions**: Automatización de repositorios y despliegues.
 
 ---
-✅ **Con esta configuración, el servidor está listo para recibir despliegues desde GitHub Actions y desde tu máquina local!** 🚀
+
+## 🛠️ Instalación Paso a Paso
+
+### 1️⃣ Configuración del Entorno
+```bash
+bash environment-ini.sh
+```
+Instala **EasyEngine**, configura el sistema y prepara los certificados SSL.
+
+### 2️⃣ Instalación del Frontend
+```bash
+bash frontend-init.sh
+```
+Configura **Vue 3 + Vite**, instala dependencias y prepara el entorno de EasyEngine.
+
+### 3️⃣ Creación de Repositorios en GitHub
+```bash
+bash fullstack-repos.sh
+```
+Automatiza la creación de repositorios para el frontend y backend en **GitHub**.
+
+### 4️⃣ Configuración de GitHub Actions
+```bash
+bash gh-fullstack.sh
+```
+Configura **GitHub Actions** para CI/CD en ambos repositorios.
+
+### 5️⃣ Conexión Backend - Frontend
+```bash
+bash connection_backend_frontend.sh
+```
+Conecta el backend (Docker) con el frontend (EasyEngine) permitiendo que Nginx acceda correctamente a FastAPI.
+
+---
+
+## 🔗 Arquitectura del Proyecto
+
+1. **Backend:**
+   - FastAPI + PostgreSQL en Docker Compose.
+   - Base de datos segura (solo accesible internamente).
+   - Conexión con Nginx mediante **proxy_pass**.
+
+2. **Frontend:**
+   - Vue 3 + Vite.
+   - Servido con EasyEngine (integrado con Nginx).
+   - Conexión HTTPS al backend a través de EasyEngine.
+
+3. **DevOps:**
+   - GitHub Actions para despliegue automático.
+   - CI/CD para mantener el sistema actualizado.
+
+---
+
+## 🎯 Notas Importantes
+- **Este script está diseñado exclusivamente para entornos con EasyEngine**.
+- **Requiere acceso a GitHub CLI para la creación de repositorios**.
+- **Los contenedores de Docker deben estar en la misma red que EasyEngine para funcionar correctamente**.
+
+🔹 Con esta infraestructura, logras un **despliegue automatizado, seguro y escalable** de tu aplicación web. 🚀
 
