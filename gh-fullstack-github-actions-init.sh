@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e  # ⛔ Detener ejecución si hay error
 
 # 📌 Configuración del repositorio
@@ -92,8 +94,13 @@ jobs:
           echo "🛠️ Preparando el entorno SSH..."
           mkdir -p ~/.ssh
 
-          echo "\${{ secrets.SSH_PRIVATE_KEY_BACKEND }}" | tr -d '\r' > ~/.ssh/id_rsa
-          echo "\${{ secrets.SSH_PUBLIC_KEY_BACKEND }}" | tr -d '\r' > ~/.ssh/id_rsa.pub
+          if [[ "$REPO_PATH" == "$BACKEND_PATH" ]]; then
+            echo "\${{ secrets.SSH_PRIVATE_KEY_BACKEND }}" | tr -d '\r' > ~/.ssh/id_rsa
+            echo "\${{ secrets.SSH_PUBLIC_KEY_BACKEND }}" | tr -d '\r' > ~/.ssh/id_rsa.pub
+          else
+            echo "\${{ secrets.SSH_PRIVATE_KEY_FRONTEND }}" | tr -d '\r' > ~/.ssh/id_rsa
+            echo "\${{ secrets.SSH_PUBLIC_KEY_FRONTEND }}" | tr -d '\r' > ~/.ssh/id_rsa.pub
+          fi
 
           chmod 600 ~/.ssh/id_rsa
           chmod 644 ~/.ssh/id_rsa.pub
