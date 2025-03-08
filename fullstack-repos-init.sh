@@ -2,7 +2,7 @@
 
 set -e  # ⛔ Detener ejecución si hay error
 
-echo "🚀 Iniciando despliegue de Tech Dash..."
+echo "🚀 Iniciando despliegue de Repositorios para backend y front end..."
 
 # 📌 Instalar `gh` si no está presente
 if ! command -v gh &>/dev/null; then
