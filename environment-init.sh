@@ -152,21 +152,30 @@ create_file_if_not_exists() {
 create_file_if_not_exists "requirements.txt" "fastapi
 uvicorn
 sqlalchemy
-psycopg2-binary"
+psycopg2-binary
+python-dotenv
+pydantic
+alembic
+gunicorn
+passlib[bcrypt]
+email-validator
 
 create_file_if_not_exists "Dockerfile" "FROM python:3.11
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"$FASTAPI_PORT\"]"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$FASTAPI_PORT"]"
 
 create_file_if_not_exists "entrypoint.sh" "#!/bin/bash
-echo \"🚀 Iniciando API...\"
-exec uvicorn main:app --host 0.0.0.0 --port $FASTAPI_PORT"
-chmod +x entrypoint.sh  # ✅ Hacer ejecutable
+echo "🚀 Iniciando API con HTTPS..."
+exec uvicorn main:app --host 0.0.0.0 --port $FASTAPI_PORT \
+    --ssl-keyfile $SSL_KEY \
+    --ssl-certfile $SSL_CERT"
 
-create_file_if_not_exists "docker-compose.yml" "version: \"3.8\"
+chmod +x entrypoint.sh
+
+create_file_if_not_exists "docker-compose.yml" "version: "3.8"
 services:
   api:
     build: .
@@ -174,14 +183,19 @@ services:
     restart: always
     depends_on:
       - postgres
+    networks:
+      - showroom-network
     ports:
-      - \"$FASTAPI_PORT:$FASTAPI_PORT\"
+      - "$FASTAPI_PORT:$FASTAPI_PORT"
     environment:
       - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@postgres:5432/$DB_NAME
+
   postgres:
     image: postgres:16
     container_name: showroom-db
     restart: always
+    networks:
+      - showroom-network
     environment:
       POSTGRES_USER: $DB_USER
       POSTGRES_PASSWORD: $DB_PASS
@@ -189,7 +203,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - \"5432:5432\"
+      - "5432:5432"
+
+networks:
+  showroom-network:
+    driver: bridge
+
 volumes:
   pgdata:"
 
@@ -227,12 +246,23 @@ fi
 
 cat <<EOF > "main.py"
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
-@app.get("/")
+# Habilitar CORS correctamente
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://tl-showroom.equalitech.xyz"],  # Solo HTTPS permitido
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/", response_class=JSONResponse)
 def read_root():
-    return {"message": "🚀 FastAPI funcionando correctamente con Nginx y Docker!"}
+    return JSONResponse(content={"message": "🚀 FastAPI con SSL habilitado"}, media_type="application/json")
 EOF
 
 # 🚀 Forzar reconstrucción de la imagen sin caché
