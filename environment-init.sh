@@ -158,7 +158,7 @@ pydantic
 alembic
 gunicorn
 passlib[bcrypt]
-email-validator
+email-validator"
 
 create_file_if_not_exists "Dockerfile" "FROM python:3.11
 WORKDIR /app
