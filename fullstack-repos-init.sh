@@ -110,7 +110,7 @@ set -e
 echo "🚀 Iniciando despliegue del backend..."
 
 PROJECT_PATH="/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
-cd "\$PROJECT_PATH"
+cd "$PROJECT_PATH"
 
 echo "📥 Actualizando código fuente desde Git..."
 git pull origin main
@@ -146,7 +146,7 @@ set -e
 echo "🚀 Iniciando despliegue del frontend..."
 
 FRONTEND_DIR="/opt/frontend/showroom-frontend"
-cd "\$FRONTEND_DIR"
+cd "$FRONTEND_DIR"
 
 echo "📥 Actualizando código fuente desde Git..."
 git pull origin main
