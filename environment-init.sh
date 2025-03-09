@@ -160,22 +160,27 @@ gunicorn
 passlib[bcrypt]
 email-validator"
 
-create_file_if_not_exists "Dockerfile" "FROM python:3.11
+create_file_if_not_exists "Dockerfile" <<EOF
+FROM python:3.11
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$FASTAPI_PORT"]"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$FASTAPI_PORT"]
+EOF
 
-create_file_if_not_exists "entrypoint.sh" "#!/bin/bash
+create_file_if_not_exists "entrypoint.sh" <<EOF
+#!/bin/bash
 echo "🚀 Iniciando API con HTTPS..."
 exec uvicorn main:app --host 0.0.0.0 --port $FASTAPI_PORT \
     --ssl-keyfile $SSL_KEY \
-    --ssl-certfile $SSL_CERT"
+    --ssl-certfile $SSL_CERT
+EOF
 
 chmod +x entrypoint.sh
 
-create_file_if_not_exists "docker-compose.yml" "version: "3.8"
+create_file_if_not_exists "docker-compose.yml" <<EOF
+version: "3.8"
 services:
   api:
     build: .
@@ -210,7 +215,8 @@ networks:
     driver: bridge
 
 volumes:
-  pgdata:"
+  pgdata:
+EOF
 
 # 🔄 Recargar Nginx con EasyEngine
 echo "🔄 Recargando Nginx con EasyEngine..."
@@ -244,7 +250,7 @@ if [[ -f "main.py" ]]; then
     rm "main.py"
 fi
 
-cat <<EOF > "main.py"
+create_file_if_not_exists "main.py" <<EOF
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
