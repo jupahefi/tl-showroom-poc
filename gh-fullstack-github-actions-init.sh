@@ -2,12 +2,7 @@
 
 set -e  # ⛔ Detener ejecución si hay error
 
-# 📌 Configuración del repositorio
-GITHUB_USER="jupahefi"
-BACKEND_REPO="tl-showroom-backend-poc"
-FRONTEND_REPO="tl-showroom-frontend-poc"
-SERVER_IP="equalitech.xyz"
-SERVER_USER="root"
+
 
 # 📂 Rutas en el servidor
 BACKEND_PATH="/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
