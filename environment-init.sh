@@ -321,7 +321,7 @@ app = FastAPI()
 # 🔹 Habilitar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tl-showroom.equalitech.xyz"],
+    allow_origins=["https://$FULL_DOMAIN"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
