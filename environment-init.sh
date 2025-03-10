@@ -208,8 +208,10 @@ EOF
 
 chmod +x entrypoint.sh
 
+
 create_file_if_not_exists "docker-compose.yml" <<EOF
 version: "3.8"
+
 services:
   api:
     build: .
@@ -220,9 +222,13 @@ services:
     networks:
       - showroom-network
     ports:
-      - "$FASTAPI_PORT:$FASTAPI_PORT"
+      - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@postgres:5432/$DB_NAME
+      - DATABASE_URL='${DATABASE_URL}'  # 🔒 No se expande en Bash, Docker lo usará intacto
+    volumes:
+      - .:/app
+    env_file:
+      - .env  # Carga las variables desde .env
 
   postgres:
     image: postgres:16
@@ -231,13 +237,15 @@ services:
     networks:
       - showroom-network
     environment:
-      POSTGRES_USER: $DB_USER
-      POSTGRES_PASSWORD: $DB_PASS
-      POSTGRES_DB: $DB_NAME
+      - POSTGRES_USER='${DB_USER}'  # 🔒 Se mantiene sin expandirse
+      - POSTGRES_PASSWORD='${DB_PASS}'
+      - POSTGRES_DB='${DB_NAME}'
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    env_file:
+      - .env  # Carga las variables desde .env
 
 networks:
   showroom-network:
