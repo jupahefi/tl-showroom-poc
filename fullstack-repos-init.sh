@@ -2,21 +2,18 @@
 
 set -e  # ⛔ Detener ejecución si hay error
 
-echo "🚀 Iniciando despliegue de Repositorios para backend y front end..."
-
-# 📌 Instalar `gh` si no está presente
-if ! command -v gh &>/dev/null; then
-    echo "🔹 Instalando GitHub CLI..."
-    sudo apt update && sudo apt install -y gh
-fi
-
-# 🔐 Autenticación con GitHub (HTTPS)
-if ! gh auth status &>/dev/null; then
-    echo "🔑 Autenticando con GitHub..."
-    gh auth login
+# 📌 Cargar variables desde `.env`
+ENV_FILE=".env"
+if [[ -f "$ENV_FILE" ]]; then
+    export $(grep -v '^#' "$ENV_FILE" | xargs -d '\n')  # 🛠️ Evita errores con espacios en valores
 else
-    echo "✅ Ya estás autenticado en GitHub."
+    echo "❌ ERROR: No se encontró el archivo .env. Ejecuta 'init.sh' primero."
+    exit 1
 fi
+
+echo "✅ Variables de entorno cargadas correctamente."
+
+echo "🚀 Iniciando despliegue de Repositorios para backend y front end..."
 
 # 📌 Configurar Git para usar HTTPS en lugar de SSH
 git config --global url."https://github.com/".insteadOf "git@github.com:"
