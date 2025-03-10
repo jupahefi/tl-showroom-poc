@@ -45,7 +45,7 @@ fi
 
 # 📂 Si el .env no existe, lo creamos y pedimos valores
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "⚠️ No se encontró .env. Creando uno nuevo..."
+    printf "⚠️ No se encontró .env. Creando uno nuevo...\n"
 
     DB_USER=$(ask_var "usuario de la base de datos" "showroom_user")
     DB_PASS=$(ask_sensitive_var "contraseña de la base de datos" "SuperSecurePass123")
@@ -53,20 +53,47 @@ if [[ ! -f "$ENV_FILE" ]]; then
     SITE_DOMAIN=$(ask_var "dominio raíz (ej: equalitech.xyz)" "equalitech.xyz")
     SUBDOMAIN=$(ask_var "subdominio del sitio (ej: tl-showroom)" "tl-showroom")
     FASTAPI_PORT=$(ask_var "puerto para FastAPI" "8000")
+    SERVER_USER=$(ask_var "usuario del servidor" "root")
+    SERVER_IP=$(ask_var "IP del servidor" "192.168.1.100")
+
+    # 🔹 Instalar GitHub CLI si no está presente
+    if ! command -v gh &>/dev/null; then
+        printf "🔹 Instalando GitHub CLI...\n"
+        sudo apt update && sudo apt install -y gh
+    fi
+
+    # 🔑 Autenticar GitHub si no está autenticado
+    if ! gh auth status &>/dev/null; then
+        printf "🔑 Autenticando con GitHub...\n"
+        gh auth login
+    fi
+
+    # 🔍 Obtener el usuario de GitHub automáticamente
+    GITHUB_USER=$(gh auth status 2>/dev/null | grep -oP '(?<=Logged in to github.com as )[^ ]+' || echo "jupahefi")
+
+    # 🔹 Generar nombres de repositorios automáticamente
+    BACKEND_REPO="${SUBDOMAIN}-backend-poc"
+    FRONTEND_REPO="${SUBDOMAIN}-frontend-poc"
 
     FULL_DOMAIN="$SUBDOMAIN.$SITE_DOMAIN"
 
-    cat <<EOF > "$ENV_FILE"
-DB_USER='$DB_USER'
-DB_PASS='$DB_PASS'
-DB_NAME='$DB_NAME'
-SITE_DOMAIN='$SITE_DOMAIN'
-SUBDOMAIN='$SUBDOMAIN'
-FULL_DOMAIN='$FULL_DOMAIN'
-FASTAPI_PORT='$FASTAPI_PORT'
-EOF
+    # 📄 Guardar variables en `.env`
+    printf "DB_USER='%s'\n" "$DB_USER" > "$ENV_FILE"
+    printf "DB_PASS='%s'\n" "$DB_PASS" >> "$ENV_FILE"
+    printf "DB_NAME='%s'\n" "$DB_NAME" >> "$ENV_FILE"
+    printf "SITE_DOMAIN='%s'\n" "$SITE_DOMAIN" >> "$ENV_FILE"
+    printf "SUBDOMAIN='%s'\n" "$SUBDOMAIN" >> "$ENV_FILE"
+    printf "FULL_DOMAIN='%s'\n" "$FULL_DOMAIN" >> "$ENV_FILE"
+    printf "FASTAPI_PORT='%s'\n" "$FASTAPI_PORT" >> "$ENV_FILE"
+    printf "SERVER_USER='%s'\n" "$SERVER_USER" >> "$ENV_FILE"
+    printf "SERVER_IP='%s'\n" "$SERVER_IP" >> "$ENV_FILE"
+    printf "GITHUB_USER='%s'\n" "$GITHUB_USER" >> "$ENV_FILE"
+    printf "BACKEND_REPO='%s'\n" "$BACKEND_REPO" >> "$ENV_FILE"
+    printf "FRONTEND_REPO='%s'\n" "$FRONTEND_REPO" >> "$ENV_FILE"
 
     echo "✅ Archivo .env creado en $(pwd). 📂 Revísalo antes de continuar."
+else
+    printf "✅ .env ya existe, usaremos sus valores.\n"
 fi
 
 # 🚀 Cargar configuración desde .env (método seguro)
