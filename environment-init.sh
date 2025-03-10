@@ -55,6 +55,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
     SUBDOMAIN=$(ask_var "subdominio del sitio (ej: tl-showroom)" "tl-showroom")
     FASTAPI_PORT=$(ask_var "puerto para FastAPI" "8000")
     SERVER_USER=$(ask_var "usuario del servidor" "root")
+    GIT_USER=$(ask_var "usuario de Git" "jupahefi")
     SERVER_IP=$(ask_var "IP del servidor" "192.168.1.100")
 
     # 🔹 Instalar GitHub CLI si no está presente
@@ -70,7 +71,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
     fi
 
     # 🔍 Obtener el usuario de GitHub automáticamente
-    GITHUB_USER=$(gh auth status 2>/dev/null | grep -oP '(?<=Logged in to github.com as )[^ ]+' || echo "jupahefi")
+    GITHUB_USER=$(gh auth status 2>/dev/null | grep -oP '(?<=Logged in to github.com as )[^ ]+' || echo $GIT_USER)
 
     # 🔹 Generar nombres de repositorios automáticamente
     BACKEND_REPO="${SUBDOMAIN}-backend-poc"
