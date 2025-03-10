@@ -22,12 +22,13 @@ ask_sensitive_var() {
     local default_value="$2"
     local user_input
 
-    echo "🔑 Ingresa $var_name (oculto, presiona Enter para usar el valor por defecto)"
-    read -s -p "🔹 Contraseña [$default_value]: " user_input
-    echo ""  # Salto de línea
+    printf "🔑 Ingresa %s (oculto, presiona Enter para usar el valor por defecto)\n" "$var_name"
+    printf "🔹 Contraseña [%s]: " "$default_value"
+    read -s user_input
+    printf "\n"  # Salto de línea
 
     # 🔥 Eliminar dobles comillas para evitar errores en el .env
-    echo "${user_input//\"/}"
+    printf "%s\n" "${user_input//\"/}"
 }
 
 # 📂 Verificación del archivo .env
