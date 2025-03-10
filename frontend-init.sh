@@ -2,12 +2,21 @@
 
 set -e  # ⛔ Detener ejecución si hay error
 
-# 📌 Variables de entorno
+# 📌 Cargar variables desde `.env`
+ENV_FILE=".env"
+if [[ -f "$ENV_FILE" ]]; then
+    export $(grep -v '^#' "$ENV_FILE" | xargs -d '\n')  # 🛠️ Evita errores con espacios en valores
+else
+    echo "❌ ERROR: No se encontró el archivo .env. Ejecuta 'init.sh' primero."
+    exit 1
+fi
+
+echo "✅ Variables de entorno cargadas correctamente."
+
+# 📌 Variables de entorno del frontend
 FRONTEND_DIR="/opt/frontend"
 PROJECT_NAME="showroom-frontend"
-DOMAIN="tl-showroom.equalitech.xyz"
-SITE_DOMAIN="equalitech.xyz"
-NGINX_CONFIG="/opt/easyengine/sites/$DOMAIN/config/nginx/custom/frontend.conf"
+DOMAIN="$FULL_DOMAIN"  # 🔥 Usa la variable completa ya extraída del .env
 SSL_CERT="/etc/letsencrypt/live/$SITE_DOMAIN/fullchain.pem"
 SSL_KEY="/etc/letsencrypt/live/$SITE_DOMAIN/privkey.pem"
 
