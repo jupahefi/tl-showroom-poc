@@ -107,7 +107,7 @@ const reloadCount = ref(0);
 
 const fetchData = async () => {
     try {
-        const response = await axios.get<ApiResponse>("https://tl-showroom.equalitech.xyz/api/");
+        const response = await axios.get<ApiResponse>("https://$DOMAIN/api/");
         console.log("✅ Respuesta del backend:", response);
         backendData.value = response.data;
         reloadCount.value++;
