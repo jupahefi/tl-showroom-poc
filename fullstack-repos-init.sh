@@ -13,15 +13,10 @@ fi
 
 echo "✅ Variables de entorno cargadas correctamente."
 
-echo "🚀 Iniciando despliegue de Repositorios para backend y front end..."
+echo "🚀 Iniciando despliegue de Repositorios para backend y frontend..."
 
 # 📌 Configurar Git para usar HTTPS en lugar de SSH
 git config --global url."https://github.com/".insteadOf "git@github.com:"
-
-# 📌 Datos de usuario y repos
-GITHUB_USER="jupahefi"
-BACKEND_REPO="tl-showroom-backend-poc"
-FRONTEND_REPO="tl-showroom-frontend-poc"
 
 # 🔑 URLs HTTPS en lugar de SSH
 BACKEND_REPO_URL="https://github.com/$GITHUB_USER/$BACKEND_REPO.git"
@@ -92,21 +87,29 @@ init_repo() {
 }
 
 # 🏗️ Crear repos y subir código de manera flexible
-init_repo "/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend" "$BACKEND_REPO_URL" "$BACKEND_REPO"
+init_repo "/opt/easyengine/sites/$FULL_DOMAIN/app/backend" "$BACKEND_REPO_URL" "$BACKEND_REPO"
 init_repo "/opt/frontend/showroom-frontend" "$FRONTEND_REPO_URL" "$FRONTEND_REPO"
 
 # 📌 Crear los scripts de despliegue en los repositorios
 echo "📜 Creando scripts de despliegue..."
 
+# 📌 Función para limpiar el dominio (quitar puntos `.`)
+clean_domain() {
+    echo "$1" | tr -d '.'
+}
+
+# 📌 Generar el nombre correcto de la red de EasyEngine
+NETWORK_NAME="$(clean_domain "$FULL_DOMAIN")_$FULL_DOMAIN"
+
 # 🚀 Backend Deploy Script
-cat <<EOF > /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend/deploy.sh
+cat <<EOF > "/opt/easyengine/sites/$FULL_DOMAIN/app/backend/deploy.sh"
 #!/bin/bash
 
 set -e
 
 echo "🚀 Iniciando despliegue del backend..."
 
-PROJECT_PATH="/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
+PROJECT_PATH="/opt/easyengine/sites/$FULL_DOMAIN/app/backend"
 cd "$PROJECT_PATH"
 
 echo "📥 Actualizando código fuente desde Git..."
@@ -123,7 +126,7 @@ echo "🔍 Verificando estado del backend..."
 docker ps | grep showroom-api
 
 echo "🔗 Conectando backend a la red de EasyEngine..."
-if docker network connect tl-showroomequalitechxyz_tl-showroom.equalitech.xyz showroom-api; then
+if docker network connect $NETWORK_NAME showroom-api; then
     echo "✅ Conexión de red exitosa."
 else
     echo "⚠️ Advertencia: No se pudo conectar showroom-api a la red de EasyEngine. Verifica manualmente."
@@ -132,7 +135,7 @@ fi
 echo "✅ Despliegue del backend completado."
 EOF
 
-chmod +x /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend/deploy.sh
+chmod +x "/opt/easyengine/sites/$FULL_DOMAIN/app/backend/deploy.sh"
 
 # 🚀 Frontend Deploy Script
 cat <<EOF > /opt/frontend/showroom-frontend/deploy.sh
@@ -155,13 +158,13 @@ echo "🏗️ Construyendo frontend..."
 npm run build
 
 echo "📂 Moviendo archivos estáticos a /htdocs..."
-rsync -av --delete dist/ /opt/easyengine/sites/tl-showroom.equalitech.xyz/app/htdocs/
+rsync -av --delete dist/ "/opt/easyengine/sites/$FULL_DOMAIN/app/htdocs/"
 
 echo "🔄 Recargando Nginx..."
-ee site reload tl-showroom.equalitech.xyz
+ee site reload "$FULL_DOMAIN"
 
 echo "🔗 Conectando backend a la red de EasyEngine..."
-if docker network connect tl-showroomequalitechxyz_tl-showroom.equalitech.xyz showroom-api; then
+if docker network connect $NETWORK_NAME showroom-api; then
     echo "✅ Conexión de red exitosa."
 else
     echo "⚠️ Advertencia: No se pudo conectar showroom-api a la red de EasyEngine. Verifica manualmente."
@@ -174,7 +177,7 @@ chmod +x /opt/frontend/showroom-frontend/deploy.sh
 
 # 📦 Agregar archivos y hacer commit
 echo "📦 Agregando archivos y haciendo commit..."
-cd "/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend"
+cd "/opt/easyengine/sites/$FULL_DOMAIN/app/backend"
 git add deploy.sh
 git commit -m "Agregar script de despliegue del backend" || echo "⚠️ No hay cambios para commitear"
 git push -u origin main || echo "⚠️ No se pudo hacer push, revisar conflictos."
@@ -190,7 +193,7 @@ echo "🎉 Repositorios actualizados con los scripts de despliegue."
 # 🚀 EJECUTAR LOS DEPLOYS
 # ==================================
 echo "🚀 Ejecutando despliegue del backend..."
-/opt/easyengine/sites/tl-showroom.equalitech.xyz/app/backend/deploy.sh
+/opt/easyengine/sites/$FULL_DOMAIN/app/backend/deploy.sh
 
 echo "🚀 Ejecutando despliegue del frontend..."
 /opt/frontend/showroom-frontend/deploy.sh
