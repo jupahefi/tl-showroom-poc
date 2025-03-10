@@ -245,6 +245,27 @@ volumes:
   pgdata:
 EOF
 
+# 📦 Crear archivo .env con las variables ya definidas
+create_file_if_not_exists ".env" <<EOF
+DB_USER="$DB_USER"
+DB_PASS="$DB_PASS"
+DB_NAME="$DB_NAME"
+DB_HOST="showroom-db"
+DB_PORT="5432"
+DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+EOF
+
+# 📦 Crear .gitignore para evitar subir archivos sensibles
+create_file_if_not_exists ".gitignore" <<EOF
+.env
+__pycache__/
+*.pyc
+*.pyo
+venv/
+EOF
+
+echo "✅ Archivos del proyecto creados exitosamente."
+
 # 🔄 Recargar Nginx con EasyEngine
 echo "🔄 Recargando Nginx con EasyEngine..."
 ee site reload "$FULL_DOMAIN"
