@@ -249,7 +249,6 @@ EOF
 echo "🔄 Recargando Nginx con EasyEngine..."
 ee site reload "$FULL_DOMAIN"
 
-FASTAPI_PORT=8000
 DOCKER_SUBNET=$(docker network inspect bridge | grep -oP '(?<="Subnet": ")[^"]+')
 
 echo "🔍 Eliminando reglas previas de UFW en el puerto $FASTAPI_PORT..."
